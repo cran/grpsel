@@ -7,8 +7,9 @@
 #'
 #' @param x a predictor matrix
 #' @param y a response vector
-#' @param group a vector of length \code{ncol(x)} with the jth entry identifying the group that the
-#' jth predictor belongs to
+#' @param group a vector of length \code{ncol(x)} with the jth element identifying the group that
+#' the jth predictor belongs to; alternatively, a list of vectors with the kth vector identifying
+#' the predictors that belong to the kth group (useful for overlapping groups)
 #' @param penalty the type of penalty to apply; one of 'grSubset', 'grSubset+grLasso', or
 #' 'grSubset+Ridge'
 #' @param loss the type of loss function to use; 'square' for linear regression or 'logistic' for
@@ -21,39 +22,45 @@
 #' that the ith observation belongs to
 #' @param interpolate a logical indicating whether to interpolate the \code{lambda} sequence for
 #' the cross-validation fits; see details below
-#' @param cv.loss an optional cross-validation loss-function to use; should accept a prediction
-#' vector x ^ T * beta and a response vector y
-#' @param ... any other arguments for \code{grpsel}
+#' @param cv.loss an optional cross-validation loss-function to use; should accept a vector of
+#' predicted values and a vector of actual values
+#' @param cluster an optional cluster for running cross-validation in parallel; must be set up using
+#' \code{parallel::makeCluster}; each fold is evaluated on a different node of the cluster
+#' @param ... any other arguments for \code{grpsel()}
 #'
-#' @details  When \code{loss='logistic'} stratified cross-validation is used to balance
+#' @details When \code{loss='logistic'} stratified cross-validation is used to balance
 #' the folds. When fitting to the cross-validation folds, \code{interpolate=TRUE} cross-validates
 #' the midpoints between consecutive \code{lambda} values rather than the original \code{lambda}
 #' sequence. This new sequence retains the same set of solutions on the full data, but often leads
 #' to superior cross-validation performance.
 #'
-#' @return An object of class cv.grpsel; a list with the following components:
-#' \item{cv.mean}{a list of vectors containing cross-validation averages per value of \code{lambda};
+#' @return An object of class \code{cv.grpsel}; a list with the following components:
+#' \item{cv.mean}{a list of vectors containing cross-validation means per value of \code{lambda};
 #' an individual vector in the list for each value of \code{gamma}}
 #' \item{cd.sd}{a list of vectors containing cross-validation standard errors per value of
 #' \code{lambda}; an individual vector in the list for each value of \code{gamma}}
 #' \item{lambda}{a list of vectors containing the values of \code{lambda} used in the fit; an
 #' individual vector in the list for each value of \code{gamma}}
 #' \item{gamma}{a vector containing the values of \code{gamma} used in the fit}
-#' \item{lambda.min}{the value of lambda minimising \code{cv.mean}}
-#' \item{gamma.min}{the value of gamma minimising \code{cv.mean}}
-#' \item{fit}{the fit from running \code{grpsel} on the full data}
+#' \item{lambda.min}{the value of \code{lambda} minimising \code{cv.mean}}
+#' \item{gamma.min}{the value of \code{gamma} minimising \code{cv.mean}}
+#' \item{fit}{the fit from running \code{grpsel()} on the full data}
 #'
 #' @example R/examples/example-cv-grpsel.R
 #'
 #' @export
 
-cv.grpsel <- function(x, y, group = seq_len(ncol(x)),
-                      penalty = c('grSubset', 'grSubset+grLasso', 'grSubset+Ridge'),
-                      loss = c('square', 'logistic'), lambda = NULL, gamma = NULL, nfold = 10,
-                      folds = NULL, interpolate = TRUE, cv.loss = NULL, ...) {
+cv.grpsel <- \(x, y, group = seq_len(ncol(x)),
+               penalty = c('grSubset', 'grSubset+grLasso', 'grSubset+Ridge'),
+               loss = c('square', 'logistic'), lambda = NULL, gamma = NULL, nfold = 10,
+               folds = NULL, interpolate = TRUE, cv.loss = NULL, cluster = NULL, ...) {
 
   penalty <- match.arg(penalty)
   loss <- match.arg(loss)
+
+  # Check data is valid
+  if (!is.matrix(x)) x <- as.matrix(x)
+  if (!is.matrix(y)) y <- as.matrix(y)
 
   # Check arguments are valid
   if (nfold < 2 | nfold > nrow(x)) {
@@ -64,10 +71,7 @@ cv.grpsel <- function(x, y, group = seq_len(ncol(x)),
   }
 
   # Preliminaries
-  if (!is.matrix(x)) x <- as.matrix(x)
-  if (!is.matrix(y)) y <- as.matrix(y)
   n <- nrow(x)
-  m <- ncol(y)
 
   # Set up for cross-validation
   lambda.compute <- is.null(lambda)
@@ -87,15 +91,13 @@ cv.grpsel <- function(x, y, group = seq_len(ncol(x)),
   } else {
     nfold <- length(unique(folds))
   }
-  cv <- lapply(1:ngamma, function(i) matrix(nrow = nfold, ncol = nlambda[i]))
 
-  # Cross-validation loss functions
-
+  # Save cross-validation loss functions
   if (is.null(cv.loss)) {
     if (loss == 'square') {
-      cv.loss <- function(xb, y) 0.5 * mean((y - xb) ^ 2)
+      cv.loss <- \(xb, y) 0.5 * mean((y - xb) ^ 2)
     } else if (loss == 'logistic') {
-      cv.loss <- function(xb, y) {
+      cv.loss <- \(xb, y) {
         pi <- pmax(1e-15, pmin(1 - 1e-15, 1 / (1 + exp(- xb))))
         - mean(y * log(pi) + (1 - y) * log(1 - pi))
       }
@@ -114,7 +116,7 @@ cv.grpsel <- function(x, y, group = seq_len(ncol(x)),
   }
 
   # Loop over folds
-  for (fold in 1:nfold) {
+  cvf <- \(fold) {
     fold.ind <- which(folds == fold)
     x.train <- x[- fold.ind, , drop = FALSE]
     x.valid <- x[fold.ind, , drop = FALSE]
@@ -122,14 +124,23 @@ cv.grpsel <- function(x, y, group = seq_len(ncol(x)),
     y.valid <- y[fold.ind, , drop = FALSE]
     fit.fold <- grpsel(x.train, y.train, group, penalty, loss, lambda = lambda.cv, gamma = gamma,
                        ...)
+    cv <- list()
     for (i in 1:ngamma) {
-      cv[[i]][fold, ] <- apply(predict(fit.fold, x.valid, gamma = gamma[i]), 2, cv.loss, y.valid)
+      cv[[i]] <- apply(predict(fit.fold, x.valid, gamma = gamma[i]), 2, cv.loss, y.valid)
     }
+    cv
   }
+  if (is.null(cluster)) {
+    cv <- lapply(1:nfold, cvf)
+  } else {
+    parallel::clusterCall(cluster, \() library(grpsel))
+    cv <- parallel::clusterApply(cluster, x = 1:nfold, fun = cvf)
+  }
+  cv <- lapply(1:ngamma, \(i) t(simplify2array(lapply(cv, `[[`, i))))
 
-  # Cross-validation results
+  # Compose cross-validation results
   cv.mean <- lapply(cv, colMeans)
-  cv.sd <- lapply(cv, function(x) apply(x, 2, stats::sd)  / sqrt(nfold))
+  cv.sd <- lapply(cv, \(x) apply(x, 2, stats::sd) / sqrt(nfold))
   gamma.min.ind <- which.min(vapply(cv.mean, min, numeric(1)))
   gamma.min <- gamma[gamma.min.ind]
   lambda.min.ind <- which.min(cv.mean[[gamma.min.ind]])
@@ -154,11 +165,11 @@ cv.grpsel <- function(x, y, group = seq_len(ncol(x)),
 #' @description Extracts coefficients for specified values of the tuning parameters.
 #'
 #' @param object an object of class \code{cv.grpsel}
-#' @param lambda the value of lambda indexing the desired fit
-#' @param gamma the value of gamma indexing the desired fit
+#' @param lambda the value of \code{lambda} indexing the desired fit
+#' @param gamma the value of \code{gamma} indexing the desired fit
 #' @param ... any other arguments
 #'
-#' @return A matrix or array of coefficients.
+#' @return A matrix of coefficients.
 #'
 #' @method coef cv.grpsel
 #'
@@ -166,7 +177,7 @@ cv.grpsel <- function(x, y, group = seq_len(ncol(x)),
 #'
 #' @importFrom stats "coef"
 
-coef.cv.grpsel <- function(object, lambda = 'lambda.min', gamma = 'gamma.min', ...) {
+coef.cv.grpsel <- \(object, lambda = 'lambda.min', gamma = 'gamma.min', ...) {
 
   if (!is.null(lambda)) if (lambda == 'lambda.min') lambda <- object$lambda.min
   if (!is.null(gamma)) if (gamma == 'gamma.min') gamma <- object$gamma.min
@@ -185,12 +196,12 @@ coef.cv.grpsel <- function(object, lambda = 'lambda.min', gamma = 'gamma.min', .
 #' @description Generate predictions for new data using specified values of the tuning parameters.
 #'
 #' @param object an object of class \code{cv.grpsel}
-#' @param x.new a matrix or array of new values for the predictors
-#' @param lambda the value of lambda indexing the desired fit
-#' @param gamma the value of gamma indexing the desired fit
+#' @param x.new a matrix of new values for the predictors
+#' @param lambda the value of \code{lambda} indexing the desired fit
+#' @param gamma the value of \code{gamma} indexing the desired fit
 #' @param ... any other arguments
 #'
-#' @return A matrix or array of predictions.
+#' @return A matrix of predictions.
 #'
 #' @method predict cv.grpsel
 #'
@@ -198,7 +209,7 @@ coef.cv.grpsel <- function(object, lambda = 'lambda.min', gamma = 'gamma.min', .
 #'
 #' @importFrom stats "predict"
 
-predict.cv.grpsel <- function(object, x.new, lambda = 'lambda.min', gamma = 'gamma.min', ...) {
+predict.cv.grpsel <- \(object, x.new, lambda = 'lambda.min', gamma = 'gamma.min', ...) {
 
   if (!is.null(lambda)) if (lambda == 'lambda.min') lambda <- object$lambda.min
   if (!is.null(gamma)) if (gamma == 'gamma.min') gamma <- object$gamma.min
@@ -218,7 +229,7 @@ predict.cv.grpsel <- function(object, x.new, lambda = 'lambda.min', gamma = 'gam
 #' of \code{gamma}.
 #'
 #' @param x an object of class \code{cv.grpsel}
-#' @param gamma the value of gamma indexing the desired fit
+#' @param gamma the value of \code{gamma} indexing the desired fit
 #' @param ... any other arguments
 #'
 #' @return A plot of the cross-validation results.
@@ -229,11 +240,11 @@ predict.cv.grpsel <- function(object, x.new, lambda = 'lambda.min', gamma = 'gam
 #'
 #' @importFrom graphics "plot"
 
-plot.cv.grpsel <- function(x, gamma = 'gamma.min', ...) {
+plot.cv.grpsel <- \(x, gamma = 'gamma.min', ...) {
 
   if (gamma == 'gamma.min') gamma <- x$gamma.min
   index <- which.min(abs(gamma - x$gamma))
-  df <- data.frame(cv.mean = x$cv.mean[[index]],  cv.sd = x$cv.sd[[index]],  ng = x$fit$ng[[index]])
+  df <- data.frame(cv.mean = x$cv.mean[[index]], cv.sd = x$cv.sd[[index]], ng = x$fit$ng[[index]])
   p <- ggplot2::ggplot(df, ggplot2::aes_string('ng', 'cv.mean')) +
     ggplot2::geom_point() +
     ggplot2::geom_errorbar(ggplot2::aes_string(ymin = 'cv.mean - cv.sd',

@@ -23,13 +23,14 @@
 #' \code{gmax} is reached first
 #' @param ngamma the number of group lasso or ridge regularisation parameters to evaluate when
 #' \code{gamma} is computed automatically
-#' @param gamma.max the maximum value for gamma when \code{penalty='grSubset+Ridge'}; when
+#' @param gamma.max the maximum value for \code{gamma} when \code{penalty='grSubset+Ridge'}; when
 #' \code{penalty='grSubset+grLasso'} \code{gamma.max} is computed automatically from the data
-#' @param gamma.min the minimum value for gamma when \code{penalty='grSubset+Ridge'} and the minimum
-#' value for \code{gamma} as a fraction of \code{gamma.max} when \code{penalty='grSubset+grLasso'}
+#' @param gamma.min the minimum value for \code{gamma} when \code{penalty='grSubset+Ridge'} and the
+#' minimum value for \code{gamma} as a fraction of \code{gamma.max} when
+#' \code{penalty='grSubset+grLasso'}
 #' @param lambda an optional list of decreasing sequences of group subset parameters; the list
 #' should contain a vector for each value of \code{gamma}
-#' @param gamma an optional decreasing sequence of L21 or L22 parameters
+#' @param gamma an optional decreasing sequence of group lasso or ridge parameters
 #' @param pmax the maximum number of predictors ever allowed to be active; ignored if \code{lambda}
 #' is supplied
 #' @param gmax the maximum number of groups ever allowed to be active; ignored if \code{lambda} is
@@ -37,7 +38,7 @@
 #' @param subset.factor a vector of penalty factors applied to the group subset penalty; equal to
 #' the group sizes by default
 #' @param lasso.factor a vector of penalty factors applied to the group lasso penalty; equal to the
-#' square roots of the group sizes by default
+#' square root of the group sizes by default
 #' @param ridge.factor a vector of penalty factors applied to the ridge penalty; equal to a
 #' vector of ones by default
 #' @param alpha the step size taken when computing \code{lambda} from the data; should be a value
@@ -63,7 +64,7 @@
 #' zero and scaled to unit l2-norm. For logistic regression (loss='logistic') only the predictors
 #' are centred and scaled and an intercept is fit during the course of the algorithm.
 #'
-#' @return An object of class grpsel; a list with the following components:
+#' @return An object of class \code{grpsel}; a list with the following components:
 #' \item{beta}{a list of matrices whose columns contain fitted coefficients for a given value of
 #' \code{lambda}; an individual matrix in the list for each value of \code{gamma}}
 #' \item{gamma}{a vector containing the values of \code{gamma} used in the fit}
@@ -80,18 +81,21 @@
 #' \item{loss}{a list of vectors containing the evaluated loss function per value of \code{lambda}
 #' evaluated; an individual vector in the list for each value of \code{gamma}}
 #'
+#' @references Thompson, R. and Vahid, F. (2021). 'Group selection and shrinkage with application to
+#' sparse semiparametric modeling'. arXiv: \href{https://arxiv.org/abs/2105.12081}{2105.12081}.
+#'
 #' @example R/examples/example-grpsel.R
 #'
 #' @export
 
-grpsel <- function(x, y, group = seq_len(ncol(x)),
-                   penalty = c('grSubset', 'grSubset+grLasso', 'grSubset+Ridge'),
-                   loss = c('square', 'logistic'), ls = FALSE, nlambda = 100, ngamma = 10,
-                   gamma.max = 100, gamma.min = 1e-4, lambda = NULL, gamma = NULL, pmax = ncol(x),
-                   gmax = length(unique(group)), subset.factor = NULL, lasso.factor = NULL,
-                   ridge.factor = NULL, alpha = 0.99, eps = 1e-4, max.cd.iter = 1e4,
-                   max.ls.iter = 100, active.set = TRUE, active.set.count = 3, sort = TRUE,
-                   screen = 500, orthogonalise = TRUE, warn = TRUE) {
+grpsel <- \(x, y, group = seq_len(ncol(x)),
+            penalty = c('grSubset', 'grSubset+grLasso', 'grSubset+Ridge'),
+            loss = c('square', 'logistic'), ls = FALSE, nlambda = 100, ngamma = 10, gamma.max = 100,
+            gamma.min = 1e-4, lambda = NULL, gamma = NULL, pmax = ncol(x),
+            gmax = length(unique(group)), subset.factor = NULL, lasso.factor = NULL,
+            ridge.factor = NULL, alpha = 0.99, eps = 1e-4, max.cd.iter = 1e4, max.ls.iter = 100,
+            active.set = TRUE, active.set.count = 3, sort = TRUE, screen = 500,
+            orthogonalise = TRUE, warn = TRUE) {
 
   penalty <- match.arg(penalty)
   loss <- match.arg(loss)
@@ -114,13 +118,13 @@ grpsel <- function(x, y, group = seq_len(ncol(x)),
   if (!group.list & length(group) != ncol(x)) {
     stop('each column of x must be assigned to a group')
   }
-  if (nlambda < 1)  stop('nlambda must be at least one')
+  if (nlambda < 1) stop('nlambda must be at least one')
   if (ngamma < 1) stop('ngamma must be at least one')
   if (gamma.max <= 0) stop('gamma.max must be positive')
   if (gamma.min <= 0) stop('gamma.min must be positive')
-  if (penalty != 'L20' & !is.null(lambda)) {
+  if (penalty != 'grSubset' & !is.null(lambda)) {
     if (is.null(gamma) & length(lambda) != ngamma) {
-      stop('lambda must be a list with of length ngamma')
+      stop('lambda must be a list with length ngamma')
     }
     if (!is.null(gamma) & length(lambda) != length(gamma)) {
       stop('lambda must be a list with the same length as gamma')
@@ -181,7 +185,6 @@ grpsel <- function(x, y, group = seq_len(ncol(x)),
     lips.const <- lipschitz(x, groups0)
   }
   if (loss == 'logistic') lips.const <- lips.const / 4
-  # lips.const <- lips.const * 10
 
   # Set up regularisation sequences
   if (is.null(gamma)) {
@@ -204,7 +207,7 @@ grpsel <- function(x, y, group = seq_len(ncol(x)),
         }
       }
       xr <- crossprod(x, r)
-      gamma.max <- max(vapply(which(lasso.factor != 0), function(l) sqrt(sum(xr[groups[[l]]] ^ 2)) /
+      gamma.max <- max(vapply(which(lasso.factor != 0), \(l) sqrt(sum(xr[groups[[l]]] ^ 2)) /
                                 lasso.factor[l], numeric(1)))
       gamma <- exp(seq(log(gamma.max), log(gamma.max * gamma.min), length.out = ngamma))
       gamma[1] <- gamma[1] * 1.00001 # Ensures first solution is zero when lambda=0
@@ -235,8 +238,8 @@ grpsel <- function(x, y, group = seq_len(ncol(x)),
   # Aggregate coefficients if groups overlap
   if (group.list) {
     result$beta <- lapply(result$beta,
-                          function(beta) stats::aggregate(beta ~ c(0, coef.id), FUN = sum)[, - 1])
-    result$beta <- lapply(result$beta, function(beta) {colnames(beta) <- NULL; as.matrix(beta)})
+                          \(beta) stats::aggregate(beta ~ c(0, coef.id), FUN = sum)[, - 1])
+    result$beta <- lapply(result$beta, \(beta) {colnames(beta) <- NULL; as.matrix(beta)})
   }
 
   # Warn if maximum iterations reached
@@ -264,11 +267,11 @@ grpsel <- function(x, y, group = seq_len(ncol(x)),
 #' @description Extracts coefficients for specified values of the tuning parameters.
 #'
 #' @param object an object of class \code{grpsel}
-#' @param lambda the value of lambda indexing the desired fit
-#' @param gamma the value of gamma indexing the desired fit
+#' @param lambda the value of \code{lambda} indexing the desired fit
+#' @param gamma the value of \code{gamma} indexing the desired fit
 #' @param ... any other arguments
 #'
-#' @return An array of coefficients.
+#' @return A matrix of coefficients.
 #'
 #' @method coef grpsel
 #'
@@ -276,7 +279,7 @@ grpsel <- function(x, y, group = seq_len(ncol(x)),
 #'
 #' @importFrom stats "coef"
 
-coef.grpsel <- function(object, lambda = NULL, gamma = NULL, ...) {
+coef.grpsel <- \(object, lambda = NULL, gamma = NULL, ...) {
 
   if (is.null(gamma) & is.null(lambda)) {
     do.call(cbind, object$beta)
@@ -288,8 +291,8 @@ coef.grpsel <- function(object, lambda = NULL, gamma = NULL, ...) {
     index <- which.min(abs(gamma - object$gamma))
     object$beta[[index]]
   } else if (is.null(gamma) & !is.null(lambda)) {
-    index <- vapply(object$lambda, function(x) which.min(abs(lambda - x)), integer(1))
-    vapply(seq_along(object$gamma), function(x) object$beta[[x]][, index[x], drop = FALSE],
+    index <- vapply(object$lambda, \(x) which.min(abs(lambda - x)), integer(1))
+    vapply(seq_along(object$gamma), \(x) object$beta[[x]][, index[x], drop = FALSE],
            numeric(nrow(object$beta[[1]])))
   }
 
@@ -306,12 +309,12 @@ coef.grpsel <- function(object, lambda = NULL, gamma = NULL, ...) {
 #' @description Generate predictions for new data using specified values of the tuning parameters.
 #'
 #' @param object an object of class \code{grpsel}
-#' @param x.new a matrix or array of new values for the predictors
-#' @param lambda the value of lambda indexing the desired fit
-#' @param gamma the value of gamma indexing the desired fit
+#' @param x.new a matrix of new values for the predictors
+#' @param lambda the value of \code{lambda} indexing the desired fit
+#' @param gamma the value of \code{gamma} indexing the desired fit
 #' @param ... any other arguments
 #'
-#' @return A matrix or array of predictions.
+#' @return A matrix of predictions.
 #'
 #' @method predict grpsel
 #'
@@ -319,7 +322,7 @@ coef.grpsel <- function(object, lambda = NULL, gamma = NULL, ...) {
 #'
 #' @importFrom stats "predict"
 
-predict.grpsel <- function(object, x.new, lambda = NULL, gamma = NULL, ...) {
+predict.grpsel <- \(object, x.new, lambda = NULL, gamma = NULL, ...) {
 
   beta <- coef.grpsel(object, lambda, gamma, ...)
   if (!is.matrix(x.new)) x.new <- as.matrix(x.new)
@@ -339,7 +342,7 @@ predict.grpsel <- function(object, x.new, lambda = NULL, gamma = NULL, ...) {
 #' \code{gamma}.
 #'
 #' @param x an object of class \code{grpsel}
-#' @param gamma the value of gamma indexing the desired fit
+#' @param gamma the value of \code{gamma} indexing the desired fit
 #' @param ... any other arguments
 #'
 #' @return A plot of the coefficient profiles.
@@ -350,7 +353,7 @@ predict.grpsel <- function(object, x.new, lambda = NULL, gamma = NULL, ...) {
 #'
 #' @importFrom graphics "plot"
 
-plot.grpsel <- function(x, gamma = 0, ...) {
+plot.grpsel <- \(x, gamma = 0, ...) {
 
   index <- which.min(abs(gamma - x$gamma))
   beta <- x$beta[[index]]

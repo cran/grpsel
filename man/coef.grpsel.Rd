@@ -9,14 +9,14 @@
 \arguments{
 \item{object}{an object of class \code{grpsel}}
 
-\item{lambda}{the value of lambda indexing the desired fit}
+\item{lambda}{the value of \code{lambda} indexing the desired fit}
 
-\item{gamma}{the value of gamma indexing the desired fit}
+\item{gamma}{the value of \code{gamma} indexing the desired fit}
 
 \item{...}{any other arguments}
 }
 \value{
-An array of coefficients.
+A matrix of coefficients.
 }
 \description{
 Extracts coefficients for specified values of the tuning parameters.

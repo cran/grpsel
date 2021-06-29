@@ -59,16 +59,17 @@ typically leads to higher quality solutions}
 \item{ngamma}{the number of group lasso or ridge regularisation parameters to evaluate when
 \code{gamma} is computed automatically}
 
-\item{gamma.max}{the maximum value for gamma when \code{penalty='grSubset+Ridge'}; when
+\item{gamma.max}{the maximum value for \code{gamma} when \code{penalty='grSubset+Ridge'}; when
 \code{penalty='grSubset+grLasso'} \code{gamma.max} is computed automatically from the data}
 
-\item{gamma.min}{the minimum value for gamma when \code{penalty='grSubset+Ridge'} and the minimum
-value for \code{gamma} as a fraction of \code{gamma.max} when \code{penalty='grSubset+grLasso'}}
+\item{gamma.min}{the minimum value for \code{gamma} when \code{penalty='grSubset+Ridge'} and the
+minimum value for \code{gamma} as a fraction of \code{gamma.max} when
+\code{penalty='grSubset+grLasso'}}
 
 \item{lambda}{an optional list of decreasing sequences of group subset parameters; the list
 should contain a vector for each value of \code{gamma}}
 
-\item{gamma}{an optional decreasing sequence of L21 or L22 parameters}
+\item{gamma}{an optional decreasing sequence of group lasso or ridge parameters}
 
 \item{pmax}{the maximum number of predictors ever allowed to be active; ignored if \code{lambda}
 is supplied}
@@ -80,7 +81,7 @@ supplied}
 the group sizes by default}
 
 \item{lasso.factor}{a vector of penalty factors applied to the group lasso penalty; equal to the
-square roots of the group sizes by default}
+square root of the group sizes by default}
 
 \item{ridge.factor}{a vector of penalty factors applied to the ridge penalty; equal to a
 vector of ones by default}
@@ -114,7 +115,7 @@ lower the run time}
 \item{warn}{a logical indicating whether to print a warning if the algorithms fail to converge}
 }
 \value{
-An object of class grpsel; a list with the following components:
+An object of class \code{grpsel}; a list with the following components:
 \item{beta}{a list of matrices whose columns contain fitted coefficients for a given value of
 \code{lambda}; an individual matrix in the list for each value of \code{gamma}}
 \item{gamma}{a vector containing the values of \code{gamma} used in the fit}
@@ -172,6 +173,10 @@ fit <- grpsel(x, y, group, penalty = 'grSubset+Ridge')
 plot(fit, gamma = 0.05)
 coef(fit, lambda = 0.05, gamma = 0.1)
 predict(fit, newx, lambda = 0.05, gamma = 0.1)
+}
+\references{
+Thompson, R. and Vahid, F. (2021). 'Group selection and shrinkage with application to
+sparse semiparametric modeling'. arXiv: \href{https://arxiv.org/abs/2105.12081}{2105.12081}.
 }
 \author{
 Ryan Thompson <ryan.thompson@monash.edu>
