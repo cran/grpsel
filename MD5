@@ -1,6 +1,6 @@
-68e89756d560deb55528b02fdb5c25b8 *DESCRIPTION
+91893208379b54d054e3fc1be37f96f4 *DESCRIPTION
 129a81322798058a668a047620824111 *NAMESPACE
-e37bf6dec4562fe04a48276389d7edff *NEWS.md
+a077dc09cd2488aafdcee77a50eddced *NEWS.md
 09ffdafdbf4b40b9e7b08ee48d1628a8 *R/RcppExports.R
 1ded68cea7642d0382c1d210c709ef94 *R/cv-grpsel.R
 5ce9fb8bd6412145879c7975c9be4a7b *R/examples/example-cv-grpsel.R
@@ -23,7 +23,7 @@ f9c81af90a542e45f1311d5347779b7a *man/plot.cv.grpsel.Rd
 3a12a38a850200483485b3cd02a88075 *man/predict.cv.grpsel.Rd
 f660f47898e54af3191567036a04b08a *man/predict.grpsel.Rd
 287151139fa45ac45e9588bda8d722db *src/Makevars
-02840648225fdedb96c7e0616cc42f82 *src/RcppExports.cpp
+a1ecbfc7445ff93cbe09e539d198055b *src/RcppExports.cpp
 3b764cc422ef82cb439a46e50f5c6519 *src/cd.cpp
 d690f49cb50de32331df4527a755b4be *src/fit-surface.cpp
 985f99d3543542dcadfe652638a870ef *src/include/cd.h
@@ -35,7 +35,7 @@ ffaea525a70e486caf719cda54ed14b6 *src/include/surface.h
 3e90a7c3ce2f62297f022036f79901e7 *src/include/threshold.h
 2b765562e9b77e2d6d36e69519c18abf *src/lipschitz.cpp
 b0429c5c3123a9bb2bf0c671708afd40 *src/loss.cpp
-09645a6c0d1fdd5789263fc43cd7ffef *src/ls.cpp
+6d60f49b76d6ab8b7de5309c52ea7885 *src/ls.cpp
 8c8da1deb5a5f0d7630341f2a317c8d5 *src/orthogonalise.cpp
 43c201a4915fe44617834ed9797981fe *src/standardise.cpp
 24368496ed12906262443690d0bba8be *src/surface.cpp
