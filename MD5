@@ -1,6 +1,6 @@
-628d3fb8a3260c4ee4e1849ffc4f1781 *DESCRIPTION
+b6c57d318f465e5dc2976ae50066c091 *DESCRIPTION
 129a81322798058a668a047620824111 *NAMESPACE
-b88e36e65d9cc6f9175b8430f9b48272 *NEWS.md
+cdbfe0d9cdbde1be43ae6c49406e2cf7 *NEWS.md
 3a7b05c5c8c006b2c18e255a6045eeb8 *R/RcppExports.R
 f36e5e4e6de129013172f66734557bdb *R/cv-grpsel.R
 9574bde39ad791a435601e2ce24cf8e6 *R/examples/example-cv-grpsel.R
@@ -9,11 +9,11 @@ f36e5e4e6de129013172f66734557bdb *R/cv-grpsel.R
 fe5a4d6460c002c6cfc6099e74caa9e0 *R/grpsel.R
 1b9e977d64063c3b598609c44daf45f6 *R/standardise.R
 f1432b3ece0aa6bdc00f519cc0088552 *README.md
-23b08fd7f70cd3ee4bdab76d68eb8bd1 *build/vignette.rds
-e31660812ed103eeef9bd921c7b3f9c5 *inst/CITATION
+bf60df333cc28f3f2bc4d6c6ee7627c1 *build/vignette.rds
+02a0bbd02a26f45b2791a7c4eea2cec8 *inst/CITATION
 285d2865e6e5b92d759ae4b0f327eef3 *inst/doc/vignette.R
 bff7ad8604cdc5f59f2b3cdd3d47cddd *inst/doc/vignette.Rmd
-6a343f1bf175a730188edd6474c5487a *inst/doc/vignette.html
+0583bed4286096777f2e9921dc1cc89a *inst/doc/vignette.html
 8ba58fedf5c9df302f2b7c1488bd5bea *man/coef.cv.grpsel.Rd
 3f0338e312c697c29f60a2706ee9f3ef *man/coef.grpsel.Rd
 e127f53b2a7e19312f5f1dcb7205e8a9 *man/cv.grpsel.Rd
